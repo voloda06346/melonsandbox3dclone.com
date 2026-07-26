@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Melon Sandbox - Достижения</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1e293b;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        button {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(1px) scale(0.97);
+        }
+        
+        /* Стили для водяного знака */
+        .bottom-right-text {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+            font-family: monospace;
+            pointer-events: none;
+        }
+
+        /* Анимации для уведомлений о достижениях */
+        @keyframes slideInRight {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+        .toast-enter {
+            animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .toast-exit {
+            animation: fadeOut 0.4s ease-in forwards;
+        }
+        
+        /* Прогресс-бар достижений */
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .progress-bar-fill {
+            background: #10b981;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white overflow-hidden">
+
+    <div class="fixed top-3 left-1/2 -translate-x-1/2 z-20 w-[95%] max-w-5xl glass-panel rounded-2xl p-3 shadow-2xl">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- Категории / Спавн -->
+            <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 max-w-full">
+                <!-- Персонажи -->
+                <div class="flex gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
+                    <button id="btn-melon" title="Мелон" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1.5 shadow">
+                        🍉 <span>Мелон</span>
+                    </button>
+                    <button id="btn-pumpkin" title="Тыква" class="bg-amber-600 hover:bg-amber-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1.5 shadow">
+                        🎃 <span>Тыква</span>
+                    </button>
+                    <button id="btn-apple" title="Яблоко" class="bg-red-600 hover:bg-red-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1.5 shadow">
+                        🍎 <span>Яблоко</span>
+                    </button>
+                </div>
+
+                <!-- Предметы и Оружие -->
+                <div class="flex gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
+                    <button id="btn-box" class="bg-amber-800 hover:bg-amber-700 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1">
+                        📦 <span>Ящик</span>
+                    </button>
+                    <button id="btn-barrel" class="bg-orange-800 hover:bg-orange-700 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1">
+                        🛢️ <span>Бочка</span>
+                    </button>
+                    <button id="btn-sword" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1">
+                        🗡️ <span>Меч</span>
+                    </button>
+                    <button id="btn-gun" class="bg-stone-600 hover:bg-stone-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1">
+                        🔫 <span>Пистолет</span>
+                    </button>
+                    <button id="btn-bomb" class="bg-rose-700 hover:bg-rose-600 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1">
+                        💣 <span>Бомба</span>
+                    </button>
+                </div>
+
+                <!-- Шприцы -->
+                <div class="flex gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
+                    <button id="btn-syringe-heal" class="bg-teal-600 hover:bg-teal-500 text-white font-medium py-1.5 px-2.5 rounded-lg text-xs flex items-center gap-1" title="Лечение">
+                        💉 <span>Хил</span>
+                    </button>
+                    <button id="btn-syringe-acid" class="bg-lime-600 hover:bg-lime-500 text-white font-medium py-1.5 px-2.5 rounded-lg text-xs flex items-center gap-1" title="Кислота">
+                        🧪 <span>Кислота</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Системные кнопки -->
+            <div class="flex items-center gap-2">
+                <!-- Скорость времени -->
+                <select id="select-speed" class="bg-slate-800 text-xs md:text-sm text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 outline-none cursor-pointer">
+                    <option value="1">⏱️ 1.0x</option>
+                    <option value="0.2">🐌 Slow-Mo</option>
+                    <option value="2">⚡ 2.0x</option>
+                    <option value="0">⏸️ Пауза</option>
+                </select>
+
+                <button id="btn-mode-3d" class="bg-indigo-700 hover:bg-indigo-600 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1 border border-indigo-500/50" title="Включить 3D физику">
+                    🧊 <span class="hidden md:inline">3D Глубина</span>
+                </button>
+                
+                <button id="btn-achievements" class="bg-yellow-600 hover:bg-yellow-500 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1 border border-yellow-500/50">
+                    🏆 <span class="hidden md:inline">Достижения</span>
+                </button>
+
+                <button id="btn-clear" class="bg-red-900/80 hover:bg-red-800 text-red-200 font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1 border border-red-700/50">
+                    🗑️ <span class="hidden md:inline">Очистить</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Инструкция внизу -->
+    <div class="fixed bottom-3 left-3 z-10 glass-panel rounded-xl p-3 text-xs text-slate-300 max-w-xs space-y-1 pointer-events-none hidden md:block">
+        <div class="font-semibold text-slate-100 flex items-center gap-1">🎮 Управление:</div>
+        <div>• <b>ЛКМ:</b> Хватать и кидать объекты</div>
+        <div>• <b>Стрелки ⬅️ ➡️ ⬆️ ⬇️:</b> Вращать камеру</div>
+        <div>• <b>Колесико мыши:</b> Двигать объект вглубь</div>
+        <div>• <b>Двойной клик по 💣:</b> Взрыв</div>
+        <div>• <b>Клик по 🔫:</b> Выстрел</div>
+    </div>
+
+    <!-- Модальное окно достижений -->
+    <div id="achievements-modal" class="hidden fixed inset-0 bg-slate-900/80 z-[150] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl p-5 h-[85vh] flex flex-col border border-slate-600 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2">🏆 Ваши Достижения</h2>
+                <div class="flex items-center gap-4">
+                    <div id="achievements-progress" class="text-sm font-semibold text-emerald-400 bg-emerald-900/40 px-3 py-1 rounded-lg">
+                        0 / 0
+                    </div>
+                    <button id="btn-close-achievements" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-lg">✖</button>
+                </div>
+            </div>
+            
+            <div id="achievements-list" class="overflow-y-auto custom-scrollbar flex flex-col gap-3 flex-1 pr-2">
+                <!-- Здесь генерируются достижения через JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для уведомлений (Тоастов) -->
+    <div id="toast-container" class="fixed top-20 right-5 z-[200] flex flex-col gap-3 pointer-events-none w-72"></div>
+
+    <!-- Копирайт пользователя -->
+    <div class="bottom-right-text">
+        разработанно voloda06346 и не подлежит краже
+    </div>
+
+    <!-- Игровой холст -->
+    <canvas id="game-canvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <script>
+        // --- СИСТЕМА ДОСТИЖЕНИЙ ---
+        let gameStats = {
+            melon_hits: 0,
+            pumpkin_hits: 0,
+            apple_hits: 0,
+            blood_particles: 0,
+            explosions: 0,
+            spawns: 0,
+            gun_shots: 0,
+            clears: 0,
+            grabs: 0,
+            // Новые статистики
+            stains_created: 0,
+            boxes_spawned: 0,
+            barrels_spawned: 0,
+            swords_spawned: 0,
+            guns_spawned: 0,
+            heals_spawned: 0,
+            acids_spawned: 0
+        };
+
+        // Попытка загрузить сохранения
+        try {
+            const savedStats = localStorage.getItem('melonSandboxStats');
+            if (savedStats) {
+                gameStats = { ...gameStats, ...JSON.parse(savedStats) };
+            }
+        } catch(e) { console.warn("Local storage error:", e); }
+
+        let unlockedAchievements = [];
+        try {
+            const savedAch = localStorage.getItem('melonSandboxAchievements');
+            if (savedAch) unlockedAchievements = JSON.parse(savedAch);
+        } catch(e) {}
+
+        const ACHIEVEMENTS = [
+            // Удары по Мелону (Старые + 2 Новых)
+            { id: 'hit_m1', title: 'Новичок', desc: 'Ударить Мелона 10 раз', target: 10, type: 'melon_hits', icon: '🖐️' },
+            { id: 'hit_m2', title: 'Ученик', desc: 'Ударить Мелона 50 раз', target: 50, type: 'melon_hits', icon: '👊' },
+            { id: 'hit_1', title: 'Первый ударщик I', desc: 'Ударить Мелона 100 раз', target: 100, type: 'melon_hits', icon: '🥊' },
+            { id: 'hit_m4', title: 'Жестокость', desc: 'Ударить Мелона 250 раз', target: 250, type: 'melon_hits', icon: '💢' },
+            { id: 'hit_2', title: 'Первый ударщик II', desc: 'Ударить Мелона 500 раз', target: 500, type: 'melon_hits', icon: '🏏' },
+            { id: 'hit_m6', title: 'Садист', desc: 'Ударить Мелона 1000 раз', target: 1000, type: 'melon_hits', icon: '🔪' },
+            { id: 'hit_3', title: 'Мастер избиения', desc: 'Ударить Мелона 2000 раз', target: 2000, type: 'melon_hits', icon: '☠️' },
+            { id: 'hit_m8', title: 'Гладиатор', desc: 'Ударить Мелона 5000 раз', target: 5000, type: 'melon_hits', icon: '⚔️' },
+            { id: 'hit_m9', title: 'Палач Мелонов', desc: 'Ударить Мелона 10000 раз', target: 10000, type: 'melon_hits', icon: '🩸' },
+            { id: 'hit_m10', title: 'Бог Боли', desc: 'Ударить Мелона 50000 раз', target: 50000, type: 'melon_hits', icon: '🔥' },
+            { id: 'hit_m11', title: 'Император Боли', desc: 'Ударить Мелона 100,000 раз', target: 100000, type: 'melon_hits', icon: '👑' },
+            { id: 'hit_m12', title: 'Бесконечные страдания', desc: 'Ударить Мелона 250,000 раз', target: 250000, type: 'melon_hits', icon: '♾️' },
+
+            // Удары по Тыкве (Старые + 2 Новых)
+            { id: 'hit_p1', title: 'Октябрьский хулиган', desc: 'Ударить Тыкву 10 раз', target: 10, type: 'pumpkin_hits', icon: '🎃' },
+            { id: 'hit_p2', title: 'Тыквенный пирог', desc: 'Ударить Тыкву 100 раз', target: 100, type: 'pumpkin_hits', icon: '🥧' },
+            { id: 'hit_p3', title: 'Резчик Джека', desc: 'Ударить Тыкву 500 раз', target: 500, type: 'pumpkin_hits', icon: '🗡️' },
+            { id: 'hit_p4', title: 'Хэллоуин отменяется', desc: 'Ударить Тыкву 1000 раз', target: 1000, type: 'pumpkin_hits', icon: '🦇' },
+            { id: 'hit_p5', title: 'Истребитель бахчевых', desc: 'Ударить Тыкву 5000 раз', target: 5000, type: 'pumpkin_hits', icon: '🚜' },
+            { id: 'hit_p6', title: 'Король Хэллоуина', desc: 'Ударить Тыкву 25,000 раз', target: 25000, type: 'pumpkin_hits', icon: '👑' },
+            { id: 'hit_p7', title: 'Тыквенный лорд', desc: 'Ударить Тыкву 100,000 раз', target: 100000, type: 'pumpkin_hits', icon: '🎃' },
+
+            // Удары по Яблоку (Старые + 2 Новых)
+            { id: 'hit_a1', title: 'Уборка урожая', desc: 'Ударить Яблоко 10 раз', target: 10, type: 'apple_hits', icon: '🍏' },
+            { id: 'hit_a2', title: 'Яблочный сок', desc: 'Ударить Яблоко 100 раз', target: 100, type: 'apple_hits', icon: '🧃' },
+            { id: 'hit_a3', title: 'Шарлотка', desc: 'Ударить Яблоко 500 раз', target: 500, type: 'apple_hits', icon: '🍰' },
+            { id: 'hit_a4', title: 'Ньютон в шоке', desc: 'Ударить Яблоко 1000 раз', target: 1000, type: 'apple_hits', icon: '🤕' },
+            { id: 'hit_a5', title: 'Фруктовый маньяк', desc: 'Ударить Яблоко 5000 раз', target: 5000, type: 'apple_hits', icon: '🍎' },
+            { id: 'hit_a6', title: 'Яблочный магнат', desc: 'Ударить Яблоко 25,000 раз', target: 25000, type: 'apple_hits', icon: '💵' },
+            { id: 'hit_a7', title: 'Хранитель сада', desc: 'Ударить Яблоко 100,000 раз', target: 100000, type: 'apple_hits', icon: '🌳' },
+
+            // Пятна Крови (Совершенно Новая Категория!)
+            { id: 'stain_1', title: 'Художник', desc: 'Оставить 1,000 пятен на полу и стенах', target: 1000, type: 'stains_created', icon: '🎨' },
+            { id: 'stain_2', title: 'Маляр', desc: 'Оставить 5,000 пятен', target: 5000, type: 'stains_created', icon: '🖌️' },
+            { id: 'stain_3', title: 'Красный ковер', desc: 'Оставить 15,000 пятен', target: 15000, type: 'stains_created', icon: '🕍' },
+            { id: 'stain_4', title: 'Заливальщик', desc: 'Пролить весь пол кровью (30,000 пятен - предел)', target: 30000, type: 'stains_created', icon: '🌊' },
+
+            // Кровь (сок - частицы) (Старые + 2 Новых)
+            { id: 'blood_0', title: 'Царапина', desc: 'Выбить 500 частиц крови', target: 500, type: 'blood_particles', icon: '💧' },
+            { id: 'blood_1', title: 'Проливщик крови I', desc: 'Выбить 2000 частиц крови', target: 2000, type: 'blood_particles', icon: '🩸' },
+            { id: 'blood_1_5', title: 'Лужа', desc: 'Выбить 5000 частиц крови', target: 5000, type: 'blood_particles', icon: '🪣' },
+            { id: 'blood_2', title: 'Проливщик крови II', desc: 'Выбить 10000 частиц крови', target: 10000, type: 'blood_particles', icon: '🧛' },
+            { id: 'blood_2_5', title: 'Реки красного', desc: 'Выбить 25000 частиц крови', target: 25000, type: 'blood_particles', icon: '🛶' },
+            { id: 'blood_3', title: 'Кровавая баня', desc: 'Выбить 50000 частиц крови', target: 50000, type: 'blood_particles', icon: '🌊' },
+            { id: 'blood_4', title: 'Кровавое море', desc: 'Выбить 100000 частиц крови', target: 100000, type: 'blood_particles', icon: '🦈' },
+            { id: 'blood_5', title: 'Океан сока', desc: 'Выбить 250000 частиц крови', target: 250000, type: 'blood_particles', icon: '🐋' },
+            { id: 'blood_6', title: 'Вампирская мечта', desc: 'Выбить 500000 частиц крови', target: 500000, type: 'blood_particles', icon: '🦇' },
+            { id: 'blood_7', title: 'Апокалипсис', desc: 'Выбить 1000000 частиц крови', target: 1000000, type: 'blood_particles', icon: '🌋' },
+            { id: 'blood_8', title: 'Кровавая галактика', desc: 'Выбить 5,000,000 частиц крови', target: 5000000, type: 'blood_particles', icon: '🌌' },
+            { id: 'blood_9', title: 'Кровавая вселенная', desc: 'Выбить 10,000,000 частиц крови', target: 10000000, type: 'blood_particles', icon: '🪐' },
+
+            // Специфичный спавн предметов (Новая категория)
+            { id: 'spawn_box_1', title: 'Грузчик', desc: 'Создать 100 ящиков', target: 100, type: 'boxes_spawned', icon: '📦' },
+            { id: 'spawn_box_2', title: 'Склад', desc: 'Создать 1,000 ящиков', target: 1000, type: 'boxes_spawned', icon: '🏢' },
+            { id: 'spawn_barrel_1', title: 'Донки Конг', desc: 'Создать 100 бочек', target: 100, type: 'barrels_spawned', icon: '🛢️' },
+            { id: 'spawn_barrel_2', title: 'Нефтяной магнат', desc: 'Создать 1,000 бочек', target: 1000, type: 'barrels_spawned', icon: '💰' },
+            { id: 'spawn_sword_1', title: 'Кузнец', desc: 'Создать 100 мечей', target: 100, type: 'swords_spawned', icon: '⚔️' },
+            { id: 'spawn_gun_1', title: 'Оружейный барон', desc: 'Создать 100 пистолетов', target: 100, type: 'guns_spawned', icon: '🔫' },
+            { id: 'spawn_heal_1', title: 'Фармацевт', desc: 'Создать 100 шприцев лечения', target: 100, type: 'heals_spawned', icon: '💉' },
+            { id: 'spawn_acid_1', title: 'Токсиколог', desc: 'Создать 100 шприцев с кислотой', target: 100, type: 'acids_spawned', icon: '🧪' },
+
+            // Создание объектов (Общее)
+            { id: 'spawn_0', title: 'Первые шаги', desc: 'Создать 10 объектов', target: 10, type: 'spawns', icon: '🌱' },
+            { id: 'spawn_1', title: 'Творец', desc: 'Создать 50 объектов', target: 50, type: 'spawns', icon: '🪄' },
+            { id: 'spawn_1_5', title: 'Архитектор', desc: 'Создать 100 объектов', target: 100, type: 'spawns', icon: '📐' },
+            { id: 'spawn_2', title: 'Бог песочницы', desc: 'Создать 500 объектов', target: 500, type: 'spawns', icon: '👑' },
+            { id: 'spawn_3', title: 'Демиург', desc: 'Создать 1000 объектов', target: 1000, type: 'spawns', icon: '🌍' },
+            { id: 'spawn_4', title: 'Фабрика', desc: 'Создать 2500 объектов', target: 2500, type: 'spawns', icon: '🏭' },
+            { id: 'spawn_5', title: 'Промышленная революция', desc: 'Создать 5000 объектов', target: 5000, type: 'spawns', icon: '⚙️' },
+            { id: 'spawn_6', title: 'Матрица', desc: 'Создать 10000 объектов', target: 10000, type: 'spawns', icon: '💻' },
+            { id: 'spawn_7', title: 'Перенаселение', desc: 'Создать 25000 объектов', target: 25000, type: 'spawns', icon: '🏙️' },
+            { id: 'spawn_8', title: 'Бесконечный конвейер', desc: 'Создать 50000 объектов', target: 50000, type: 'spawns', icon: '♾️' },
+
+            // Взрывы (Старые + 3 Новых)
+            { id: 'exp_0', title: 'Бум!', desc: 'Взорвать 1 бомбу', target: 1, type: 'explosions', icon: '🧨' },
+            { id: 'exp_1', title: 'Подрывник', desc: 'Взорвать 10 бомб', target: 10, type: 'explosions', icon: '💥' },
+            { id: 'exp_1_5', title: 'Пироман', desc: 'Взорвать 50 бомб', target: 50, type: 'explosions', icon: '🔥' },
+            { id: 'exp_2', title: 'Оппенгеймер', desc: 'Взорвать 100 бомб', target: 100, type: 'explosions', icon: '☢️' },
+            { id: 'exp_3', title: 'Безумный химик', desc: 'Взорвать 250 бомб', target: 250, type: 'explosions', icon: '🧪' },
+            { id: 'exp_4', title: 'Артиллерист', desc: 'Взорвать 500 бомб', target: 500, type: 'explosions', icon: '💣' },
+            { id: 'exp_5', title: 'Майкл Бэй', desc: 'Взорвать 1000 бомб', target: 1000, type: 'explosions', icon: '🎬' },
+            { id: 'exp_6', title: 'Армагеддон', desc: 'Взорвать 2500 бомб', target: 2500, type: 'explosions', icon: '☄️' },
+            { id: 'exp_7', title: 'Разрушитель миров', desc: 'Взорвать 5000 бомб', target: 5000, type: 'explosions', icon: '🌌' },
+            { id: 'exp_8', title: 'Ядерная зима', desc: 'Взорвать 10,000 бомб', target: 10000, type: 'explosions', icon: '❄️' },
+            { id: 'exp_9', title: 'Сверхновая', desc: 'Взорвать 25,000 бомб', target: 25000, type: 'explosions', icon: '🌟' },
+            { id: 'exp_10', title: 'Теория большого взрыва', desc: 'Взорвать 50,000 бомб', target: 50000, type: 'explosions', icon: '🌌' },
+
+            // Стрельба (Старые + 4 Новых)
+            { id: 'gun_1', title: 'Стрелок', desc: 'Выстрелить 1 раз', target: 1, type: 'gun_shots', icon: '🎯' },
+            { id: 'gun_2', title: 'Ковбой', desc: 'Выстрелить 50 раз', target: 50, type: 'gun_shots', icon: '🤠' },
+            { id: 'gun_3', title: 'Снайпер', desc: 'Выстрелить 100 раз', target: 100, type: 'gun_shots', icon: '🔭' },
+            { id: 'gun_4', title: 'Пулеметчик', desc: 'Выстрелить 500 раз', target: 500, type: 'gun_shots', icon: '🔫' },
+            { id: 'gun_5', title: 'Рэмбо', desc: 'Выстрелить 1000 раз', target: 1000, type: 'gun_shots', icon: '🪖' },
+            { id: 'gun_6', title: 'Свинцовый дождь', desc: 'Выстрелить 5000 раз', target: 5000, type: 'gun_shots', icon: '🌧️' },
+            { id: 'gun_7', title: 'Свинец в воздухе', desc: 'Выстрелить 10,000 раз', target: 10000, type: 'gun_shots', icon: '💨' },
+            { id: 'gun_8', title: 'Миниган', desc: 'Выстрелить 25,000 раз', target: 25000, type: 'gun_shots', icon: '🎰' },
+            { id: 'gun_9', title: 'Мастер баллистики', desc: 'Выстрелить 50,000 раз', target: 50000, type: 'gun_shots', icon: '📐' },
+            { id: 'gun_10', title: 'Пулевой шторм', desc: 'Выстрелить 100,000 раз', target: 100000, type: 'gun_shots', icon: '🌪️' },
+
+            // Очистка карты (Старые + 2 Новых)
+            { id: 'clear_1', title: 'Уборщик', desc: 'Очистить карту 1 раз', target: 1, type: 'clears', icon: '🧹' },
+            { id: 'clear_2', title: 'Чистюля', desc: 'Очистить карту 10 раз', target: 10, type: 'clears', icon: '🧽' },
+            { id: 'clear_3', title: 'Танос', desc: 'Очистить карту 50 раз (Щелчок!)', target: 50, type: 'clears', icon: '🧤' },
+            { id: 'clear_4', title: 'Чистильщик', desc: 'Очистить карту 250 раз', target: 250, type: 'clears', icon: '🌪️' },
+            { id: 'clear_5', title: 'Стерильность', desc: 'Очистить карту 1,000 раз', target: 1000, type: 'clears', icon: '✨' },
+
+            // Захват объектов (Старые + 2 Новых)
+            { id: 'grab_1', title: 'Телекинез', desc: 'Схватить объекты мышью 10 раз', target: 10, type: 'grabs', icon: '🖐️' },
+            { id: 'grab_2', title: 'Магнитные руки', desc: 'Схватить объекты мышью 100 раз', target: 100, type: 'grabs', icon: '🧲' },
+            { id: 'grab_3', title: 'Гравитационная аномалия', desc: 'Схватить объекты 500 раз', target: 500, type: 'grabs', icon: '🌌' },
+            { id: 'grab_4', title: 'Джедай', desc: 'Схватить объекты 1000 раз', target: 1000, type: 'grabs', icon: '⚔️' },
+            { id: 'grab_5', title: 'Гравипушка', desc: 'Схватить объекты 5,000 раз', target: 5000, type: 'grabs', icon: '🦾' },
+            { id: 'grab_6', title: 'Сила мысли', desc: 'Схватить объекты 10,000 раз', target: 10000, type: 'grabs', icon: '🧠' }
+        ];
+
+        let statCheckTimeout = null;
+        
+        // Оптимизированная система обновления статистики (Debounce)
+        // Чтобы игра не лагала при спавне тысяч частиц!
+        function updateStat(type, amount = 1) {
+            if (gameStats[type] === undefined) gameStats[type] = 0;
+            gameStats[type] += amount;
+            
+            if (!statCheckTimeout) {
+                statCheckTimeout = setTimeout(() => {
+                    try {
+                        localStorage.setItem('melonSandboxStats', JSON.stringify(gameStats));
+                    } catch(e) {}
+                    checkAchievements();
+                    statCheckTimeout = null;
+                }, 250); // Проверяем достижения не чаще 4 раз в секунду
+            }
+        }
+
+        function checkAchievements() {
+            let newlyUnlocked = false;
+            for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+                const ach = ACHIEVEMENTS[i];
+                if (!unlockedAchievements.includes(ach.id) && gameStats[ach.type] >= ach.target) {
+                    unlockedAchievements.push(ach.id);
+                    newlyUnlocked = true;
+                    showAchievementToast(ach);
+                }
+            }
+            if (newlyUnlocked) {
+                try {
+                    localStorage.setItem('melonSandboxAchievements', JSON.stringify(unlockedAchievements));
+                } catch(e) {}
+                
+                // Если модалка открыта, обновляем её
+                if (!document.getElementById('achievements-modal').classList.contains('hidden')) {
+                    renderAchievementsUI();
+                }
+            }
+        }
+
+        function showAchievementToast(ach) {
+            initAudio();
+            playSound('pop'); 
+            
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-800 border border-yellow-500/50 rounded-xl p-3 shadow-lg flex items-center gap-3 toast-enter pointer-events-auto';
+            
+            toast.innerHTML = `
+                <div class="text-3xl bg-slate-700 p-2 rounded-lg">${ach.icon}</div>
+                <div>
+                    <div class="text-yellow-400 text-xs font-bold uppercase tracking-wider">Достижение получено!</div>
+                    <div class="text-white font-semibold text-sm">${ach.title}</div>
+                    <div class="text-slate-300 text-xs">${ach.desc}</div>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 400);
+            }, 4500);
+        }
+
+        function renderAchievementsUI() {
+            const list = document.getElementById('achievements-list');
+            const counter = document.getElementById('achievements-progress');
+            list.innerHTML = '';
+            
+            counter.innerText = `${unlockedAchievements.length} / ${ACHIEVEMENTS.length}`;
+
+            ACHIEVEMENTS.forEach(ach => {
+                const isUnlocked = unlockedAchievements.includes(ach.id);
+                const currentProgress = Math.min(gameStats[ach.type] || 0, ach.target);
+                const percent = (currentProgress / ach.target) * 100;
+                
+                const item = document.createElement('div');
+                item.className = `flex flex-col p-3 rounded-xl border ${isUnlocked ? 'bg-emerald-900/30 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700/50 opacity-80'}`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl ${isUnlocked ? '' : 'grayscale opacity-50'}">${ach.icon}</div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-center">
+                                <div class="font-bold ${isUnlocked ? 'text-emerald-400' : 'text-slate-300'}">${ach.title}</div>
+                                ${isUnlocked ? '<span class="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded">Получено</span>' : `<span class="text-xs text-slate-400">${currentProgress} / ${ach.target}</span>`}
+                            </div>
+                            <div class="text-xs text-slate-400 mt-0.5">${ach.desc}</div>
+                            ${!isUnlocked ? `
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill ${percent === 100 ? 'bg-emerald-500' : 'bg-yellow-500'}" style="width: ${percent}%"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        let scene, camera, renderer;
+        let world;
+        let physicsObjects = [];
+        let particleSystems = [];
+        
+        const MAX_STAINS_PER_COLOR = 30000; 
+        const stainManagers = {}; 
+        const sharedStainGeom = new THREE.CircleGeometry(1, 12); 
+        const dummyStain = new THREE.Object3D();
+        
+        let cameraAzimuth = 0;
+        let cameraElevation = 0.12;
+        let cameraDistance = 32;
+        const cameraTarget = new THREE.Vector3(0, 4, 0);
+        const keysPressed = {};
+
+        function updateCameraPosition() {
+            const cosElev = Math.cos(cameraElevation);
+            camera.position.x = cameraTarget.x + cameraDistance * cosElev * Math.sin(cameraAzimuth);
+            camera.position.y = cameraTarget.y + cameraDistance * Math.sin(cameraElevation);
+            camera.position.z = cameraTarget.z + cameraDistance * cosElev * Math.cos(cameraAzimuth);
+            camera.lookAt(cameraTarget);
+        }
+
+        function resetCamera() {
+            cameraAzimuth = 0;
+            cameraElevation = 0.12;
+            cameraDistance = 32;
+            updateCameraPosition();
+        }
+
+        let raycaster, mouse, dragPlane;
+        let mouseConstraint = null;
+        let constrainedBody = null;
+        let mouseKinematicBody;
+        let isDragging = false;
+
+        let physicsMaterial;
+        let gameSpeed = 1.0;
+        let is3DMode = true; 
+        let backWallMesh, backWallBody;
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let masterGain = null;
+        let noiseBuffer = null;
+        let distCurve = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+                
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.6; 
+                masterGain.connect(audioCtx.destination);
+
+                const bufferSize = audioCtx.sampleRate * 2.0;
+                noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                const k = 400, n_samples = 44100, deg = Math.PI / 180;
+                distCurve = new Float32Array(n_samples);
+                for (let i = 0; i < n_samples; ++i) {
+                    const x = i * 2 / n_samples - 1;
+                    distCurve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+                }
+            }
+        }
+
+        function playSound(type, param = 1) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                
+                if (type === 'pop') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.connect(gain); gain.connect(masterGain);
+                    osc.start(now); osc.stop(now + 0.1);
+                    
+                } else if (type === 'shot') {
+                    const dur = 0.4;
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + dur);
+                    const oscGain = audioCtx.createGain();
+                    oscGain.gain.setValueAtTime(1.2, now);
+                    oscGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    osc.connect(oscGain); oscGain.connect(masterGain);
+                    osc.start(now); osc.stop(now + dur);
+
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(6000, now);
+                    filter.frequency.exponentialRampToValueAtTime(300, now + dur);
+                    const nGain = audioCtx.createGain();
+                    nGain.gain.setValueAtTime(1.5, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    noise.connect(filter); filter.connect(nGain); nGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + dur);
+                    
+                } else if (type === 'explosion') {
+                    const dur = 1.5;
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(80, now);
+                    osc.frequency.exponentialRampToValueAtTime(10, now + dur);
+                    const oscGain = audioCtx.createGain();
+                    oscGain.gain.setValueAtTime(2.0, now); 
+                    oscGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    osc.connect(oscGain); oscGain.connect(masterGain);
+                    osc.start(now); osc.stop(now + dur);
+
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const dist = audioCtx.createWaveShaper();
+                    dist.curve = distCurve;
+                    dist.oversample = '4x';
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(3000, now);
+                    filter.frequency.exponentialRampToValueAtTime(50, now + dur);
+                    const nGain = audioCtx.createGain();
+                    nGain.gain.setValueAtTime(1.8, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    noise.connect(dist); dist.connect(filter); filter.connect(nGain); nGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + dur);
+                    
+                } else if (type === 'hit') {
+                    const vol = Math.min(Math.max(param, 0.05), 1.0);
+                    const dur = 0.15;
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'square'; 
+                    osc.frequency.setValueAtTime(120 + Math.random()*60, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + dur);
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1200, now);
+                    filter.frequency.exponentialRampToValueAtTime(100, now + dur);
+                    const oscGain = audioCtx.createGain();
+                    oscGain.gain.setValueAtTime(vol * 1.2, now);
+                    oscGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    osc.connect(filter); filter.connect(oscGain); oscGain.connect(masterGain);
+                    osc.start(now); osc.stop(now + dur);
+
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const nFilter = audioCtx.createBiquadFilter();
+                    nFilter.type = 'highpass';
+                    nFilter.frequency.value = 800;
+                    const nGain = audioCtx.createGain();
+                    nGain.gain.setValueAtTime(vol * 0.8, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05); 
+                    noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + 0.05);
+                    
+                } else if (type === 'splat') {
+                    const vol = Math.min(Math.max(param, 0.05), 1.0);
+                    const dur = 0.25;
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150 + Math.random()*50, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + dur);
+                    const oscGain = audioCtx.createGain();
+                    oscGain.gain.setValueAtTime(vol * 1.5, now);
+                    oscGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    osc.connect(oscGain); oscGain.connect(masterGain);
+                    osc.start(now); osc.stop(now + dur);
+
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.Q.value = 3.5;
+                    filter.frequency.setValueAtTime(1800 + Math.random()*1000, now);
+                    filter.frequency.exponentialRampToValueAtTime(200, now + dur);
+                    const nGain = audioCtx.createGain();
+                    nGain.gain.setValueAtTime(vol * 2.0, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+                    noise.connect(filter); filter.connect(nGain); nGain.connect(masterGain);
+                    noise.start(now); noise.stop(now + dur);
+                }
+            } catch(e) {}
+        }
+
+        function initThree() {
+            const canvas = document.getElementById('game-canvas');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a); 
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+            dirLight.position.set(15, 25, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.left = -25;
+            dirLight.shadow.camera.right = 25;
+            dirLight.shadow.camera.top = 25;
+            dirLight.shadow.camera.bottom = -10;
+            scene.add(dirLight);
+
+            const backGeo = new THREE.PlaneGeometry(100, 50);
+            const backMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85, metalness: 0.2 });
+            backWallMesh = new THREE.Mesh(backGeo, backMat);
+            backWallMesh.position.set(0, 20, -5.8);
+            backWallMesh.receiveShadow = true;
+            scene.add(backWallMesh);
+
+            const backGrid = new THREE.GridHelper(100, 50, 0x0284c7, 0x1f2937);
+            backGrid.rotation.x = Math.PI / 2;
+            backGrid.position.set(0, 20, -5.75);
+            backGrid.material.opacity = 0.35;
+            backGrid.material.transparent = true;
+            scene.add(backGrid);
+
+            const planeGeo = new THREE.PlaneGeometry(1000, 1000);
+            const planeMat = new THREE.MeshBasicMaterial({ visible: false });
+            dragPlane = new THREE.Mesh(planeGeo, planeMat);
+            scene.add(dragPlane);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+        }
+
+        function initCannon() {
+            world = new CANNON.World();
+            world.gravity.set(0, -18, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 35;
+            world.solver.tolerance = 0.0001;
+
+            physicsMaterial = new CANNON.Material("standard");
+            const contactMat = new CANNON.ContactMaterial(
+                physicsMaterial, physicsMaterial,
+                { friction: 0.4, restitution: 0.15 }
+            );
+            world.addContactMaterial(contactMat);
+
+            mouseKinematicBody = new CANNON.Body({ mass: 0, type: CANNON.Body.KINEMATIC });
+            mouseKinematicBody.addShape(new CANNON.Sphere(0.1));
+            mouseKinematicBody.collisionFilterGroup = 0;
+            world.addBody(mouseKinematicBody);
+
+            createGround();
+        }
+
+        function createGround() {
+            const groundGeo = new THREE.BoxGeometry(100, 2, 14);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
+            const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+            groundMesh.position.set(0, -1, 0); 
+            groundMesh.receiveShadow = true;
+            scene.add(groundMesh);
+
+            const edgeGeo = new THREE.BoxGeometry(100, 0.1, 14);
+            const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
+            const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
+            edgeMesh.position.set(0, 0.05, 0);
+            scene.add(edgeMesh);
+
+            const groundShape = new CANNON.Box(new CANNON.Vec3(50, 20, 7));
+            const groundBody = new CANNON.Body({ mass: 0, material: physicsMaterial });
+            groundBody.addShape(groundShape);
+            groundBody.position.set(0, -19.9, 0); 
+            world.addBody(groundBody);
+
+            const backWallShape = new CANNON.Box(new CANNON.Vec3(50, 25, 1));
+            backWallBody = new CANNON.Body({ mass: 0, material: physicsMaterial });
+            backWallBody.addShape(backWallShape);
+            backWallBody.position.set(0, 20, -6.8);
+            world.addBody(backWallBody);
+
+            const frontWallShape = new CANNON.Box(new CANNON.Vec3(50, 25, 1));
+            const frontWallBody = new CANNON.Body({ mass: 0, material: physicsMaterial });
+            frontWallBody.addShape(frontWallShape);
+            frontWallBody.position.set(0, 20, 6.5);
+            world.addBody(frontWallBody);
+        }
+
+        function updatePhysicsFactors(body) {
+            if (is3DMode) {
+                body.linearFactor = new CANNON.Vec3(1, 1, 1);
+                body.angularFactor = new CANNON.Vec3(1, 1, 1);
+            } else {
+                body.linearFactor = new CANNON.Vec3(1, 1, 0);
+                body.angularFactor = new CANNON.Vec3(0, 0, 1);
+                body.position.z = 0;
+                body.velocity.z = 0;
+                body.angularVelocity.x = 0;
+                body.angularVelocity.y = 0;
+            }
+        }
+
+        function getStainManager(colorHex) {
+            if (!stainManagers[colorHex]) {
+                const mat = new THREE.MeshBasicMaterial({ 
+                    color: colorHex, 
+                    transparent: true, 
+                    opacity: 0.85, 
+                    depthWrite: false 
+                });
+                const mesh = new THREE.InstancedMesh(sharedStainGeom, mat, MAX_STAINS_PER_COLOR);
+                mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                mesh.count = 0;
+                scene.add(mesh);
+                
+                stainManagers[colorHex] = {
+                    mesh: mesh,
+                    currentIndex: 0
+                };
+            }
+            return stainManagers[colorHex];
+        }
+
+        function createStain(x, y, colorHex, scale = 1, z = 0, surfaceType = 'auto') {
+            updateStat('stains_created', 1);
+
+            const isWall = (surfaceType === 'wall') || (surfaceType === 'auto' && z <= -5.0);
+            const manager = getStainManager(colorHex);
+            
+            const radius = (0.2 + Math.random() * 0.7) * scale;
+            dummyStain.scale.set(radius, radius * (0.6 + Math.random() * 0.7), 1);
+
+            if (isWall) {
+                dummyStain.position.set(x, Math.max(0.2, y), -5.74 + (Math.random() * 0.01));
+                dummyStain.rotation.set(0, 0, Math.random() * Math.PI * 2);
+            } else {
+                const clampedZ = Math.max(-5.5, Math.min(5.5, z));
+                dummyStain.position.set(x, 0.11 + (Math.random() * 0.005), clampedZ);
+                dummyStain.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+            }
+
+            dummyStain.updateMatrix();
+            manager.mesh.setMatrixAt(manager.currentIndex, dummyStain.matrix);
+            manager.mesh.instanceMatrix.needsUpdate = true;
+
+            manager.currentIndex = (manager.currentIndex + 1) % MAX_STAINS_PER_COLOR;
+            if (manager.mesh.count < MAX_STAINS_PER_COLOR) {
+                manager.mesh.count++;
+            }
+        }
+
+        function spawnJuiceParticles(pos, colorHex, count = 20, isDrip = false) {
+            updateStat('blood_particles', count);
+
+            const geom = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            const velocities = [];
+            const landed = [];
+
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = pos.x;
+                positions[i * 3 + 1] = pos.y;
+                positions[i * 3 + 2] = pos.z;
+
+                if (isDrip) {
+                    velocities.push(
+                        (Math.random() - 0.5) * 2.5,
+                        -(Math.random() * 2), 
+                        is3DMode ? (Math.random() - 0.5) * 2.5 : (Math.random() - 0.5) * 0.5
+                    );
+                } else {
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1); 
+                    const speed = Math.random() * 18 + 4;
+                    
+                    let vx = Math.sin(phi) * Math.cos(theta) * speed;
+                    let vy = (Math.cos(phi) * speed) + 5;
+                    let vz = is3DMode ? (Math.sin(phi) * Math.sin(theta) * speed) : ((Math.random() - 0.5) * 5);
+
+                    velocities.push(vx, vy, vz);
+                }
+                landed.push(false);
+            }
+
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({ color: colorHex, size: 0.35, transparent: true, opacity: 0.95 });
+            const pSystem = new THREE.Points(geom, mat);
+            scene.add(pSystem);
+
+            particleSystems.push({
+                mesh: pSystem,
+                count: count,
+                velocities: velocities,
+                landed: landed,
+                colorHex: colorHex,
+                life: 1.0
+            });
+        }
+
+        function createShape(type, x, y, options = {}) {
+            updateStat('spawns', 1);
+
+            const mass = options.mass || 1;
+            const color = options.color || 0xcccccc;
+            
+            let shape, geometry;
+            const w = options.w || 1, h = options.h || 1, d = options.d || 1;
+            const r = options.r || 0.5;
+
+            if (type === 'box') {
+                shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+                geometry = new THREE.BoxGeometry(w, h, d);
+            } else if (type === 'sphere') {
+                shape = new CANNON.Sphere(r);
+                geometry = new THREE.SphereGeometry(r, 24, 24);
+            } else if (type === 'cylinder') {
+                shape = new CANNON.Cylinder(r, r, h, 16);
+                geometry = new THREE.CylinderGeometry(r, r, h, 16);
+            }
+
+            const body = new CANNON.Body({ mass: mass, material: physicsMaterial });
+            body.addShape(shape);
+            const initialZ = options.z !== undefined ? options.z : (is3DMode ? (Math.random() - 0.5) * 2 : 0);
+            body.position.set(x, y, initialZ);
+            updatePhysicsFactors(body);
+
+            body.isBomb = options.isBomb || false;
+            body.isGun = options.isGun || false;
+            body.isSyringe = options.isSyringe || false;
+            body.syringeType = options.syringeType || null;
+            body.isFruit = options.isFruit || false;
+            body.juiceColor = options.juiceColor || null;
+            body.lastHitTime = 0;
+            body.bleedAmount = 0; 
+
+            body.addEventListener('collide', (e) => {
+                const impact = Math.abs(e.contact.getImpactVelocityAlongNormal());
+                const now = performance.now();
+                
+                if (impact > 2.5 && (now - body.lastHitTime > 80)) {
+                    body.lastHitTime = now;
+                    initAudio();
+                    const volume = Math.min(impact / 15, 1.0);
+                    
+                    if (body.isFruit || body.juiceColor) {
+                        playSound(body.isFruit ? 'splat' : 'hit', volume);
+                        if (impact > 4 && body.juiceColor) {
+                            spawnJuiceParticles(body.position, body.juiceColor, Math.floor(volume * 80));
+                            body.bleedAmount = Math.min(body.bleedAmount + impact * 6, 400); 
+                        }
+                    } else {
+                        playSound('hit', volume);
+                    }
+                }
+            });
+
+            world.addBody(body);
+
+            const material = new THREE.MeshStandardMaterial({ 
+                color: color, 
+                roughness: options.roughness || 0.4,
+                metalness: options.metalness || 0.1
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData.body = body;
+            scene.add(mesh);
+
+            physicsObjects.push({ mesh, body, juiceColor: options.juiceColor || color });
+            return body;
+        }
+
+        function explode(center, radius = 10, force = 750) {
+            initAudio();
+            playSound('explosion');
+            updateStat('explosions', 1);
+
+            spawnJuiceParticles(center, 0xf97316, 150);
+
+            for (let i = 0; i < world.bodies.length; i++) {
+                const b = world.bodies[i];
+                if (b.mass === 0 || b.type === CANNON.Body.KINEMATIC) continue;
+
+                const dist = b.position.distanceTo(center);
+                if (dist < radius && dist > 0) {
+                    const dir = new CANNON.Vec3();
+                    b.position.vsub(center, dir);
+                    
+                    if (is3DMode) {
+                        dir.z += (Math.random() - 0.5) * 1.2;
+                    } else {
+                        dir.z = 0;
+                    }
+
+                    dir.normalize();
+                    const pForce = force * (1 - (dist / radius));
+                    dir.scale(pForce, dir);
+                    b.applyImpulse(dir, b.position);
+
+                    const item = physicsObjects.find(o => o.body === b);
+                    if (item && item.juiceColor) {
+                        spawnJuiceParticles(b.position, item.juiceColor, 100);
+                        b.bleedAmount = Math.min((b.bleedAmount || 0) + 250, 400);
+                    }
+                }
+            }
+        }
+
+        function spawnRagdoll(x, y, type = 'melon') {
+            initAudio();
+            playSound('pop');
+            updateStat('spawns', 1);
+            
+            let mainColor, bodyColor, juiceColor;
+            if (type === 'melon') {
+                mainColor = 0x10b981; 
+                bodyColor = 0x047857;
+                juiceColor = 0xef4444; 
+            } else if (type === 'pumpkin') {
+                mainColor = 0xf59e0b; 
+                bodyColor = 0xd97706;
+                juiceColor = 0xf97316; 
+            } else {
+                mainColor = 0xef4444; 
+                bodyColor = 0xb91c1c;
+                juiceColor = 0xd97706; 
+            }
+
+            const z = is3DMode ? (Math.random() - 0.5) * 2 : 0;
+
+            function createPart(w, h, d, px, py, pz, color, mass = 1) {
+                const shape = new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2));
+                const body = new CANNON.Body({ mass: mass, material: physicsMaterial });
+                body.addShape(shape);
+                body.position.set(px, py, pz);
+                updatePhysicsFactors(body);
+
+                body.isFruit = true;
+                body.juiceColor = juiceColor;
+                body.ragdollType = type;
+                body.lastHitTime = 0;
+                body.bleedAmount = 0; 
+
+                body.addEventListener('collide', (e) => {
+                    const impact = Math.abs(e.contact.getImpactVelocityAlongNormal());
+                    const now = performance.now();
+                    if (impact > 2.5 && (now - body.lastHitTime > 80)) {
+                        body.lastHitTime = now;
+                        initAudio();
+                        const volume = Math.min(impact / 15, 1.0);
+                        playSound('splat', volume);
+                        
+                        if (body.ragdollType === 'melon') {
+                            updateStat('melon_hits', 1);
+                        } else if (body.ragdollType === 'pumpkin') {
+                            updateStat('pumpkin_hits', 1);
+                        } else if (body.ragdollType === 'apple') {
+                            updateStat('apple_hits', 1);
+                        }
+
+                        if (impact > 3.5) {
+                            spawnJuiceParticles(body.position, body.juiceColor, Math.floor(volume * 180));
+                            body.bleedAmount = Math.min(body.bleedAmount + impact * 10, 400);
+                        }
+                    }
+                });
+
+                world.addBody(body);
+
+                const geom = new THREE.BoxGeometry(w, h, d);
+                const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.1 });
+                const mesh = new THREE.Mesh(geom, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData.body = body;
+                scene.add(mesh);
+
+                physicsObjects.push({ mesh, body, juiceColor });
+                return body;
+            }
+
+            const head = createPart(0.8, 0.8, 0.8, x, y + 1.8, z, mainColor, 1.2);
+            const torso = createPart(0.9, 1.3, 0.5, x, y + 0.8, z, bodyColor, 2.5);
+            const armL = createPart(0.35, 0.9, 0.35, x - 0.7, y + 0.9, z, mainColor, 0.6);
+            const armR = createPart(0.35, 0.9, 0.35, x + 0.7, y + 0.9, z, mainColor, 0.6);
+            const legL = createPart(0.38, 1.0, 0.38, x - 0.3, y - 0.3, z, bodyColor, 0.8);
+            const legR = createPart(0.38, 1.0, 0.38, x + 0.3, y - 0.3, z, bodyColor, 0.8);
+
+            function join(bodyA, pivotA, bodyB, pivotB) {
+                const c = new CANNON.PointToPointConstraint(
+                    bodyA, new CANNON.Vec3(...pivotA),
+                    bodyB, new CANNON.Vec3(...pivotB)
+                );
+                world.addConstraint(c);
+            }
+
+            join(head, [0, -0.45, 0], torso, [0, 0.7, 0]);
+            join(armL, [0, 0.4, 0], torso, [-0.55, 0.5, 0]);
+            join(armR, [0, 0.4, 0], torso, [0.55, 0.5, 0]);
+            join(legL, [0, 0.45, 0], torso, [-0.25, -0.7, 0]);
+            join(legR, [0, 0.45, 0], torso, [0.25, -0.7, 0]);
+        }
+
+        function spawnWeapon(type) {
+            initAudio();
+            playSound('pop');
+            const x = (Math.random() - 0.5) * 6;
+            const y = 10;
+
+            if (type === 'barrel') {
+                updateStat('barrels_spawned', 1);
+                const body = createShape('cylinder', x, y, { r: 0.7, h: 1.6, mass: 4, color: 0xea580c, roughness: 0.3, metalness: 0.4, juiceColor: 0x1c1917 });
+                body.isBomb = true;
+            } else if (type === 'sword') {
+                updateStat('swords_spawned', 1);
+                const body = createShape('box', x, y, { w: 0.25, h: 2.2, d: 0.15, mass: 1.5, color: 0xcbd5e1, roughness: 0.2, metalness: 0.8, juiceColor: 0x94a3b8 });
+                body.isWeapon = true;
+            } else if (type === 'gun') {
+                updateStat('guns_spawned', 1);
+                const body = createShape('box', x, y, { w: 0.8, h: 0.5, d: 0.25, mass: 1.2, color: 0x334155, roughness: 0.3, metalness: 0.7, juiceColor: 0x1e293b });
+                body.isGun = true;
+            } else if (type === 'syringe-heal') {
+                updateStat('heals_spawned', 1);
+                const body = createShape('cylinder', x, y, { r: 0.2, h: 0.9, mass: 0.8, color: 0x14b8a6, roughness: 0.2, metalness: 0.5, juiceColor: 0x14b8a6 });
+                body.isSyringe = true;
+                body.syringeType = 'heal';
+            } else if (type === 'syringe-acid') {
+                updateStat('acids_spawned', 1);
+                const body = createShape('cylinder', x, y, { r: 0.2, h: 0.9, mass: 0.8, color: 0x84cc16, roughness: 0.2, metalness: 0.5, juiceColor: 0x84cc16 });
+                body.isSyringe = true;
+                body.syringeType = 'acid';
+            }
+        }
+
+        function shootGun(gunBody) {
+            initAudio();
+            playSound('shot');
+            updateStat('gun_shots', 1);
+
+            const dir = new THREE.Vector3(1, 0.1, (Math.random() - 0.5) * 0.2).normalize();
+            const spawnPos = new THREE.Vector3(gunBody.position.x + dir.x * 0.8, gunBody.position.y + dir.y * 0.8, gunBody.position.z);
+
+            const shape = new CANNON.Sphere(0.15);
+            const bulletBody = new CANNON.Body({ mass: 0.3, material: physicsMaterial });
+            bulletBody.addShape(shape);
+            bulletBody.position.copy(spawnPos);
+            bulletBody.velocity.set(dir.x * 45, dir.y * 45, dir.z * 45);
+            updatePhysicsFactors(bulletBody);
+
+            const geom = new THREE.SphereGeometry(0.15, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            const mesh = new THREE.Mesh(geom, mat);
+            scene.add(mesh);
+
+            physicsObjects.push({ mesh, body: bulletBody, juiceColor: 0xfacc15 });
+            world.addBody(bulletBody);
+
+            spawnJuiceParticles(spawnPos, 0xfde047, 6);
+
+            bulletBody.addEventListener('collide', (e) => {
+                const hitBody = e.body;
+                if (hitBody && hitBody !== gunBody) {
+                    if (hitBody.juiceColor) {
+                        spawnJuiceParticles(bulletBody.position, hitBody.juiceColor, 120);
+                        hitBody.bleedAmount = Math.min((hitBody.bleedAmount || 0) + 150, 400);
+                        
+                        if (hitBody.ragdollType === 'melon') {
+                            updateStat('melon_hits', 1);
+                        } else if (hitBody.ragdollType === 'pumpkin') {
+                            updateStat('pumpkin_hits', 1);
+                        } else if (hitBody.ragdollType === 'apple') {
+                            updateStat('apple_hits', 1);
+                        }
+                    }
+                    const pushDir = new CANNON.Vec3(dir.x * 80, dir.y * 80, dir.z * 80);
+                    hitBody.applyImpulse(pushDir, bulletBody.position);
+                    setTimeout(() => removeBodyAndMesh(bulletBody), 10);
+                }
+            });
+
+            setTimeout(() => {
+                removeBodyAndMesh(bulletBody);
+            }, 2000);
+        }
+
+        function setupInteractions() {
+            function updateMousePos(e) {
+                let cx = e.clientX, cy = e.clientY;
+                if (e.touches && e.touches.length > 0) {
+                    cx = e.touches[0].clientX;
+                    cy = e.touches[0].clientY;
+                }
+                mouse.x = (cx / window.innerWidth) * 2 - 1;
+                mouse.y = -(cy / window.innerHeight) * 2 + 1;
+            }
+
+            window.addEventListener('keydown', (e) => {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    keysPressed[e.code] = true;
+                    e.preventDefault();
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                    keysPressed[e.code] = false;
+                }
+            });
+
+            function onWheel(e) {
+                if (isDragging && constrainedBody && is3DMode) {
+                    e.preventDefault();
+                    const delta = Math.sign(e.deltaY) * -0.6;
+                    let newZ = mouseKinematicBody.position.z + delta;
+                    newZ = Math.max(-5.7, Math.min(5.7, newZ));
+                    mouseKinematicBody.position.z = newZ;
+                }
+            }
+
+            function onPointerDown(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.closest('#achievements-modal')) return;
+                initAudio();
+                updateMousePos(e);
+                raycaster.setFromCamera(mouse, camera);
+
+                const meshes = physicsObjects.map(o => o.mesh);
+                const intersects = raycaster.intersectObjects(meshes);
+
+                if (intersects.length > 0) {
+                    const hitMesh = intersects[0].object;
+                    const hitBody = hitMesh.userData.body;
+
+                    if (hitBody.isBomb && e.detail === 2) {
+                        explode(hitBody.position);
+                        removeBodyAndMesh(hitBody);
+                        return;
+                    }
+
+                    if (hitBody.isGun) {
+                        shootGun(hitBody);
+                    }
+
+                    isDragging = true;
+                    constrainedBody = hitBody;
+                    updateStat('grabs', 1);
+                    const p = intersects[0].point;
+                    mouseKinematicBody.position.set(p.x, p.y, hitBody.position.z);
+
+                    const localPivot = new CANNON.Vec3();
+                    constrainedBody.pointToLocalFrame(new CANNON.Vec3(p.x, p.y, hitBody.position.z), localPivot);
+
+                    mouseConstraint = new CANNON.PointToPointConstraint(
+                        mouseKinematicBody, new CANNON.Vec3(0,0,0),
+                        constrainedBody, localPivot
+                    );
+                    world.addConstraint(mouseConstraint);
+                    constrainedBody.wakeUp();
+                }
+            }
+
+            function onPointerMove(e) {
+                if (!isDragging) return;
+                updateMousePos(e);
+                raycaster.setFromCamera(mouse, camera);
+                
+                dragPlane.position.z = mouseKinematicBody.position.z;
+                dragPlane.quaternion.copy(camera.quaternion);
+
+                const intersects = raycaster.intersectObject(dragPlane);
+                if (intersects.length > 0) {
+                    mouseKinematicBody.position.x = intersects[0].point.x;
+                    mouseKinematicBody.position.y = intersects[0].point.y;
+                }
+            }
+
+            function onPointerUp() {
+                if (isDragging && mouseConstraint) {
+                    world.removeConstraint(mouseConstraint);
+                    mouseConstraint = null;
+                    constrainedBody = null;
+                    isDragging = false;
+                }
+            }
+
+            window.addEventListener('wheel', onWheel, { passive: false });
+            window.addEventListener('mousedown', onPointerDown);
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+            window.addEventListener('dblclick', onPointerDown);
+
+            window.addEventListener('touchstart', onPointerDown, {passive: false});
+            window.addEventListener('touchmove', onPointerMove, {passive: false});
+            window.addEventListener('touchend', onPointerUp);
+        }
+
+        function removeBodyAndMesh(body) {
+            world.removeBody(body);
+            const idx = physicsObjects.findIndex(o => o.body === body);
+            if (idx !== -1) {
+                scene.remove(physicsObjects[idx].mesh);
+                physicsObjects.splice(idx, 1);
+            }
+        }
+
+        function setupUI() {
+            document.getElementById('btn-melon').onclick = () => spawnRagdoll((Math.random() - 0.5) * 6, 10, 'melon');
+            document.getElementById('btn-pumpkin').onclick = () => spawnRagdoll((Math.random() - 0.5) * 6, 10, 'pumpkin');
+            document.getElementById('btn-apple').onclick = () => spawnRagdoll((Math.random() - 0.5) * 6, 10, 'apple');
+
+            document.getElementById('btn-box').onclick = () => {
+                updateStat('boxes_spawned', 1);
+                initAudio();
+                playSound('pop');
+                createShape('box', (Math.random() - 0.5) * 6, 10, { w: 1.6, h: 1.6, d: 1.6, mass: 2, color: 0xa16207, juiceColor: 0x713f12 }); 
+            };
+            document.getElementById('btn-barrel').onclick = () => spawnWeapon('barrel');
+            document.getElementById('btn-sword').onclick = () => spawnWeapon('sword');
+            document.getElementById('btn-gun').onclick = () => spawnWeapon('gun');
+            document.getElementById('btn-bomb').onclick = () => {
+                initAudio();
+                playSound('pop');
+                createShape('sphere', (Math.random() - 0.5) * 6, 10, { r: 0.8, mass: 3, color: 0xe11d48, isBomb: true, juiceColor: 0x4c0519 });
+            };
+
+            document.getElementById('btn-syringe-heal').onclick = () => spawnWeapon('syringe-heal');
+            document.getElementById('btn-syringe-acid').onclick = () => spawnWeapon('syringe-acid');
+
+            const btn3d = document.getElementById('btn-mode-3d');
+            btn3d.onclick = () => {
+                is3DMode = !is3DMode;
+                btn3d.innerHTML = is3DMode ? '🧊 <span class="hidden md:inline">3D Глубина</span>' : '🟦 <span class="hidden md:inline">2D Плоскость</span>';
+                btn3d.className = is3DMode 
+                    ? 'bg-indigo-700 hover:bg-indigo-600 text-white font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1 border border-indigo-500/50'
+                    : 'bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-1.5 px-3 rounded-lg text-xs md:text-sm flex items-center gap-1 border border-slate-600';
+                
+                physicsObjects.forEach(obj => updatePhysicsFactors(obj.body));
+            };
+            
+            const modalAch = document.getElementById('achievements-modal');
+            document.getElementById('btn-achievements').onclick = () => {
+                renderAchievementsUI();
+                modalAch.classList.remove('hidden');
+            };
+            document.getElementById('btn-close-achievements').onclick = () => {
+                modalAch.classList.add('hidden');
+            };
+
+            document.getElementById('select-speed').onchange = (e) => {
+                gameSpeed = parseFloat(e.target.value);
+            };
+
+            document.getElementById('btn-clear').onclick = () => {
+                updateStat('clears', 1);
+                for (let i = physicsObjects.length - 1; i >= 0; i--) {
+                    world.removeBody(physicsObjects[i].body);
+                    scene.remove(physicsObjects[i].mesh);
+                }
+                physicsObjects = [];
+                while (world.constraints.length > 0) {
+                    world.removeConstraint(world.constraints[0]);
+                }
+                
+                for (let key in stainManagers) {
+                    stainManagers[key].mesh.count = 0;
+                    stainManagers[key].currentIndex = 0;
+                    stainManagers[key].mesh.instanceMatrix.needsUpdate = true;
+                }
+            };
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        const fixedTimeStep = 1 / 60;
+        let lastTime;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            let cameraRotated = false;
+            const rotSpeed = 0.025;
+            if (keysPressed['ArrowLeft']) {
+                cameraAzimuth -= rotSpeed;
+                cameraRotated = true;
+            }
+            if (keysPressed['ArrowRight']) {
+                cameraAzimuth += rotSpeed;
+                cameraRotated = true;
+            }
+            if (keysPressed['ArrowUp']) {
+                cameraElevation = Math.min(Math.PI / 2 - 0.05, cameraElevation + rotSpeed);
+                cameraRotated = true;
+            }
+            if (keysPressed['ArrowDown']) {
+                cameraElevation = Math.max(-Math.PI / 6, cameraElevation - rotSpeed);
+                cameraRotated = true;
+            }
+
+            if (cameraRotated) {
+                updateCameraPosition();
+            }
+
+            if (lastTime !== undefined && gameSpeed > 0) {
+                const dt = (time - lastTime) / 1000;
+                world.step(fixedTimeStep, dt * gameSpeed, 5);
+            }
+            lastTime = time;
+
+            physicsObjects.forEach(obj => {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+
+                if (obj.body.bleedAmount > 0 && gameSpeed > 0) {
+                    obj.body.bleedAmount -= 0.04 * gameSpeed; 
+                    
+                    if (Math.random() < obj.body.bleedAmount * 0.012 * gameSpeed) {
+                        const dripPos = new THREE.Vector3(
+                            obj.body.position.x + (Math.random() - 0.5) * 0.4,
+                            obj.body.position.y - 0.25, 
+                            obj.body.position.z + (Math.random() - 0.5) * 0.4
+                        );
+                        spawnJuiceParticles(dripPos, obj.juiceColor, 1 + Math.floor(Math.random() * 2), true);
+                    }
+                }
+
+                if (!is3DMode) {
+                    obj.body.position.z = 0;
+                    obj.body.velocity.z = 0;
+                    obj.body.angularVelocity.x = 0;
+                    obj.body.angularVelocity.y = 0;
+                } else {
+                    if (obj.body.position.z < -5.7) {
+                        obj.body.position.z = -5.7;
+                        obj.body.velocity.z *= -0.2;
+                    }
+                    if (obj.body.position.z > 5.7) {
+                        obj.body.position.z = 5.7;
+                        obj.body.velocity.z *= -0.2;
+                    }
+                }
+            });
+
+            for (let i = particleSystems.length - 1; i >= 0; i--) {
+                const ps = particleSystems[i];
+                ps.life -= 0.012;
+                const pos = ps.mesh.geometry.attributes.position.array;
+
+                for (let j = 0; j < ps.count; j++) {
+                    if (ps.landed[j]) continue;
+
+                    ps.velocities[j * 3 + 1] -= 28 * 0.016;
+
+                    pos[j * 3] += ps.velocities[j * 3] * 0.016;
+                    pos[j * 3 + 1] += ps.velocities[j * 3 + 1] * 0.016;
+                    pos[j * 3 + 2] += ps.velocities[j * 3 + 2] * 0.016;
+
+                    ps.velocities[j * 3] *= 0.97;
+                    ps.velocities[j * 3 + 2] *= 0.97;
+
+                    if (pos[j * 3 + 1] <= 0.11) {
+                        ps.landed[j] = true;
+                        createStain(pos[j * 3], 0.11, ps.colorHex, 0.8 + Math.random() * 0.6, pos[j * 3 + 2], 'floor');
+                        pos[j * 3 + 1] = -100; 
+                    } else if (pos[j * 3 + 2] <= -5.5) {
+                        ps.landed[j] = true;
+                        createStain(pos[j * 3], pos[j * 3 + 1], ps.colorHex, 0.6 + Math.random() * 0.5, -5.74, 'wall');
+                        pos[j * 3 + 1] = -100; 
+                    }
+                }
+                ps.mesh.geometry.attributes.position.needsUpdate = true;
+                ps.mesh.material.opacity = Math.max(0, ps.life);
+
+                if (ps.life <= 0) {
+                    scene.remove(ps.mesh);
+                    if (ps.mesh.geometry) ps.mesh.geometry.dispose();
+                    if (ps.mesh.material) ps.mesh.material.dispose();
+                    particleSystems.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            initThree();
+            initCannon();
+            setupInteractions();
+            setupUI();
+
+            spawnRagdoll(0, 8, 'melon');
+
+            animate();
+        };
+    </script>
+</body>
+</html>
